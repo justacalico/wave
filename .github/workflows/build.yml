@@ -33,8 +33,6 @@ permissions:
 
 env:
   FLUTTER_VERSION: '3.44.6'
-  VERSION: ${{ needs.setup.outputs.version }}
-  BUILD_NUMBER: ${{ needs.setup.outputs.build_number }}
   MERGE_REQUEST_ID: ${{ inputs.merge_request_id }}
   MERGE_REQUEST_URL: ${{ inputs.merge_request_url }}
 
