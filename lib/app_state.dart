@@ -113,8 +113,12 @@ class AppState extends ChangeNotifier {
           id: 'work', name: 'Work', icon: 'briefcase', gradientIndex: 3));
       _saveWorkspaces();
     }
-    activeWorkspaceId =
-        Storage.read(Storage.workspaces, 'active') ?? workspaces.first.id;
+    final savedWs = Storage.read(Storage.workspaces, 'active');
+    activeWorkspaceId = savedWs != null &&
+            savedWs.isNotEmpty &&
+            workspaces.any((w) => w.id == savedWs)
+        ? savedWs
+        : workspaces.first.id;
 
     if (restoreTabs) {
       final tabsRaw = Storage.read(Storage.tabs, 'list');
@@ -140,7 +144,9 @@ class AppState extends ChangeNotifier {
   void _saveWorkspaces() {
     Storage.write(Storage.workspaces, 'list',
         jsonEncode(workspaces.map((w) => w.toJson()).toList()));
-    Storage.write(Storage.workspaces, 'active', activeWorkspaceId);
+    if (activeWorkspaceId.isNotEmpty) {
+      Storage.write(Storage.workspaces, 'active', activeWorkspaceId);
+    }
   }
 
   void _saveTabs() {
@@ -541,11 +547,18 @@ class AppState extends ChangeNotifier {
     }
     if (input.startsWith('about:') || input.startsWith('file:')) return true;
     final uri = Uri.tryParse('https://$input');
-    if (uri == null) return false;
+    if (uri == null || uri.host.isEmpty) return false;
+    // localhost / IP literals with optional port are addresses, not searches.
+    final bareHost = uri.host;
+    if (bareHost == 'localhost' ||
+        RegExp(r'^\d{1,3}(\.\d{1,3}){3}$').hasMatch(bareHost) ||
+        bareHost == '::1') {
+      return true;
+    }
     // One dotted label pair minimum and a plausible TLD.
-    return uri.host.contains('.') &&
-        !uri.host.contains('..') &&
-        uri.host.split('.').last.length >= 2;
+    return bareHost.contains('.') &&
+        !bareHost.contains('..') &&
+        bareHost.split('.').last.length >= 2;
   }
 
   String _normalizeUrl(String input) {

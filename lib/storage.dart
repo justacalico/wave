@@ -3,54 +3,107 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:hive_ce_flutter/hive_ce_flutter.dart';
 import 'package:path_provider/path_provider.dart';
 
+/// Minimal key/value surface over a Hive box, or a plain map when running
+/// under flutter_test (file-backed boxes stall the fake-async zone).
+class Kv {
+  Kv._(this._box);
+
+  Kv.memory() : _box = null;
+
+  final Box? _box;
+  final Map<String, dynamic> _map = {};
+
+  dynamic get(String key, {dynamic defaultValue}) =>
+      _box?.get(key, defaultValue: defaultValue) ??
+      _map[key] ??
+      defaultValue;
+
+  void put(String key, dynamic value) {
+    if (_box != null) {
+      _box.put(key, value);
+    } else {
+      _map[key] = value;
+    }
+  }
+
+  Future<void> delete(String key) async {
+    if (_box != null) {
+      await _box.delete(key);
+    } else {
+      _map.remove(key);
+    }
+  }
+
+  Future<void> clear() async {
+    if (_box != null) {
+      await _box.clear();
+    } else {
+      _map.clear();
+    }
+  }
+}
+
 /// Thin persistence layer over Hive boxes. Everything in Wave that survives
 /// a restart lives in one of these boxes; secrets live in secure storage.
 class Storage {
   Storage._();
 
-  static late Box _workspaces;
-  static late Box _tabs;
-  static late Box _bookmarks;
-  static late Box _history;
-  static late Box _downloads;
-  static late Box _settings;
-  static late Box _vault;
-  static late Box _sync;
+  static late Kv _workspaces;
+  static late Kv _tabs;
+  static late Kv _bookmarks;
+  static late Kv _history;
+  static late Kv _downloads;
+  static late Kv _settings;
+  static late Kv _vault;
+  static late Kv _sync;
 
   static const secure = FlutterSecureStorage();
 
   static bool _ready = false;
 
-  static Future<void> init() async {
+  /// Pass [memory]=true in tests so boxes never touch the filesystem.
+  static Future<void> init({bool memory = false}) async {
     if (_ready) return;
+    if (memory) {
+      _workspaces = Kv.memory();
+      _tabs = Kv.memory();
+      _bookmarks = Kv.memory();
+      _history = Kv.memory();
+      _downloads = Kv.memory();
+      _settings = Kv.memory();
+      _vault = Kv.memory();
+      _sync = Kv.memory();
+      _ready = true;
+      return;
+    }
     if (kIsWeb) {
       await Hive.initFlutter();
     } else {
       final dir = await getApplicationSupportDirectory();
       await Hive.initFlutter(dir.path);
     }
-    _workspaces = await Hive.openBox('workspaces');
-    _tabs = await Hive.openBox('tabs');
-    _bookmarks = await Hive.openBox('bookmarks');
-    _history = await Hive.openBox('history');
-    _downloads = await Hive.openBox('downloads');
-    _settings = await Hive.openBox('settings');
-    _vault = await Hive.openBox('vault');
-    _sync = await Hive.openBox('sync');
+    _workspaces = Kv._(await Hive.openBox('workspaces'));
+    _tabs = Kv._(await Hive.openBox('tabs'));
+    _bookmarks = Kv._(await Hive.openBox('bookmarks'));
+    _history = Kv._(await Hive.openBox('history'));
+    _downloads = Kv._(await Hive.openBox('downloads'));
+    _settings = Kv._(await Hive.openBox('settings'));
+    _vault = Kv._(await Hive.openBox('vault'));
+    _sync = Kv._(await Hive.openBox('sync'));
     _ready = true;
   }
 
-  static Box get workspaces => _workspaces;
-  static Box get tabs => _tabs;
-  static Box get bookmarks => _bookmarks;
-  static Box get history => _history;
-  static Box get downloads => _downloads;
-  static Box get settings => _settings;
-  static Box get vault => _vault;
-  static Box get sync => _sync;
+  static Kv get workspaces => _workspaces;
+  static Kv get tabs => _tabs;
+  static Kv get bookmarks => _bookmarks;
+  static Kv get history => _history;
+  static Kv get downloads => _downloads;
+  static Kv get settings => _settings;
+  static Kv get vault => _vault;
+  static Kv get sync => _sync;
 
-  static String? read(Box box, String key) => box.get(key) as String?;
-  static void write(Box box, String key, String value) => box.put(key, value);
+  static String? read(Kv box, String key) => box.get(key) as String?;
+  static void write(Kv box, String key, String value) => box.put(key, value);
 
   static Future<String?> readSecret(String key) => secure.read(key: key);
   static Future<void> writeSecret(String key, String value) =>

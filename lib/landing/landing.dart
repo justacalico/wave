@@ -497,7 +497,7 @@ class _EngineSection extends StatelessWidget {
         physics: const NeverScrollableScrollPhysics(),
         mainAxisSpacing: 1,
         crossAxisSpacing: 1,
-        childAspectRatio: wide ? 4.4 : 5.2,
+        mainAxisExtent: 144,
         children: [
           for (final e in engines)
             Container(

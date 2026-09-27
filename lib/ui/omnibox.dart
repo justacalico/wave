@@ -227,7 +227,6 @@ class OmniboxState extends State<Omnibox> {
     return CompositedTransformTarget(
       link: _link,
       child: Focus(
-        focusNode: _focus,
         onKeyEvent: _onKey,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),

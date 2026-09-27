@@ -1,3 +1,9 @@
+tag_prefix = "v"
+from_latest_tag = true
+ignore_merge_commits = true
+branch_whitelist = ["main"]
+skip_ci = "[skip ci]"
+
 pre_bump_hooks = [
   "sed -i -E 's/^version:.*/version: {{version}}/' pubspec.yaml",
 ]
@@ -9,8 +15,13 @@ remote = "gitlab.com"
 owner = "HttpAnimations"
 repository = "wave"
 
-# Profile used by the CI auto-release job
-[profiles.ci]
+# CI auto-release profile: only bump version files and tag. The tag pipeline
+# mirrors the tag to GitHub where the release build runs.
+[bump_profiles.ci]
 pre_bump_hooks = [
   "sed -i -E 's/^version:.*/version: {{version}}/' pubspec.yaml",
 ]
+post_bump_hooks = []
+
+[commit_types]
+feat = { changelog_title = "Features", bump_minor = true }

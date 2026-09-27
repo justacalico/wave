@@ -18,12 +18,17 @@ class CompanionTabController extends TabWebController {
   Rect _rect = Rect.zero;
   bool _engineVisible = false;
   bool _launched = false;
+  bool _broken = false;
+  bool _disposed = false;
 
   /// One-shot: the window is created lazily on first activation so opening
-  /// the app with 20 restored tabs does not spawn 20 windows.
+  /// the app with 20 restored tabs does not spawn 20 windows. Failure (no
+  /// WebKitGTK runtime, headless test VM) leaves the tab inert rather than
+  /// crashing the shell.
   Future<void> ensureCreated() async {
-    if (_webview != null) return;
-    _webview = await WebviewWindow.create(
+    if (_webview != null || _broken) return;
+    try {
+      _webview = await WebviewWindow.create(
       configuration: CreateConfiguration(
         windowWidth: _rect.width.toInt().clamp(200, 10000),
         windowHeight: _rect.height.toInt().clamp(200, 10000),
@@ -35,7 +40,11 @@ class CompanionTabController extends TabWebController {
         userDataFolderWindows:
             tab.isPrivate ? 'wave_private_${tab.id}' : 'wave_default',
       ),
-    );
+      );
+    } catch (_) {
+      _broken = true;
+      return;
+    }
     final w = _webview!;
     w.addScriptToExecuteOnDocumentCreated(kWavePageScript);
     w.registerJavaScriptMessageHandler('waveMeta', _onMeta);
@@ -83,7 +92,9 @@ class CompanionTabController extends TabWebController {
 
   @override
   Future<void> loadUrl(String url) async {
+    if (_disposed) return;
     await ensureCreated();
+    if (_disposed || _broken) return;
     _launched = true;
     _webview?.launch(url);
     loading.value = true;
@@ -123,6 +134,7 @@ class CompanionTabController extends TabWebController {
   @override
   void setEngineVisible(bool visible) {
     _engineVisible = visible;
+    if (_disposed) return;
     if (visible && !_launched && tab.url.isNotEmpty) {
       unawaited(loadUrl(tab.url));
       return;
@@ -143,6 +155,7 @@ class CompanionTabController extends TabWebController {
 
   @override
   Future<void> dispose() async {
+    _disposed = true;
     _webview?.close();
     _webview = null;
     progress.dispose();
