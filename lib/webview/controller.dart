@@ -39,8 +39,10 @@ abstract class TabWebController {
   /// Fired when a download starts. Args: url, suggested filename.
   void Function(String url, String filename)? onDownloadStart;
 
-  /// Fired when the webview wants the password vault. Resolves via [Completer].
-  void Function(String origin)? onCredentialRequest;
+  /// Fired when a login form is submitted on the page — the shell offers to
+  /// save it into the vault.
+  void Function(String origin, String username, String password)?
+      onCredentialRequest;
 
   void setNavState(bool back, bool forward) {
     if (back != _canGoBack || forward != _canGoForward) {

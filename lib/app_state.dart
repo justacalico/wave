@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 
 import 'models.dart';
@@ -278,7 +279,8 @@ class AppState extends ChangeNotifier {
     c.onNewWindow = (url) => openUrlInNewTab(url);
     c.onDownloadStart = (url, filename) =>
         unawaited(downloads.start(url, filename));
-    c.onCredentialRequest = (origin) => _onCredentialSubmit(tab, origin);
+    c.onCredentialRequest =
+        (origin, user, pass) => _onCredentialSubmit(tab, origin, user, pass);
     return c;
   }
 
@@ -308,21 +310,41 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  void _onCredentialSubmit(BrowserTab tab, String origin) {
+  void _onCredentialSubmit(
+      BrowserTab tab, String origin, String user, String pass) {
     // Re-surfaced to the UI via a pending-prompt flag.
     pendingCredentialOrigin = origin;
     pendingCredentialTabId = tab.id;
+    pendingCredentialUser = user;
+    pendingCredentialPassword = pass;
     notifyListeners();
   }
 
   /// Set when a page submits a password form; the shell shows a save sheet.
   String? pendingCredentialOrigin;
   String? pendingCredentialTabId;
+  String? pendingCredentialUser;
+  String? pendingCredentialPassword;
 
   void clearPendingCredential() {
     pendingCredentialOrigin = null;
     pendingCredentialTabId = null;
+    pendingCredentialUser = null;
+    pendingCredentialPassword = null;
     notifyListeners();
+  }
+
+  /// Persist the pending credential into the vault under the page origin.
+  Future<void> savePendingCredential() async {
+    final origin = pendingCredentialOrigin;
+    if (origin == null || origin.isEmpty) return;
+    await vault.upsert(VaultEntry(
+      id: 'cred-${DateTime.now().microsecondsSinceEpoch}',
+      origin: 'https://$origin',
+      username: pendingCredentialUser ?? '',
+      password: pendingCredentialPassword ?? '',
+    ));
+    clearPendingCredential();
   }
 
   BrowserTab newTab({
@@ -450,6 +472,17 @@ class AppState extends ChangeNotifier {
 
   void reloadTab(String id) =>
       unawaited(_controllers[id]?.reload() ?? Future.value());
+
+  /// Clone a tab — same url, same workspace, lands next to the original.
+  BrowserTab? duplicateTab(String id) {
+    final src = tabs.firstWhereOrNull((t) => t.id == id);
+    if (src == null) return null;
+    final t = newTab(
+        url: src.url,
+        workspaceId: src.workspaceId,
+        isPrivate: src.isPrivate);
+    return t;
+  }
 
   void suspendInactiveTabs({int keepAlive = 6}) {
     final active = workspaceTabs

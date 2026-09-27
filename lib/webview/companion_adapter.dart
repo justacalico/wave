@@ -50,7 +50,16 @@ class CompanionTabController extends TabWebController {
     w.registerJavaScriptMessageHandler('waveMeta', _onMeta);
     w.registerJavaScriptMessageHandler('waveCredentialSubmit',
         (name, body) {
-      onCredentialRequest?.call(tab.host);
+      try {
+        final m =
+            jsonDecode(body as String) as Map<String, dynamic>;
+        onCredentialRequest?.call(
+            m['origin'] as String? ?? tab.host,
+            m['username'] as String? ?? '',
+            m['password'] as String? ?? '');
+      } catch (_) {
+        onCredentialRequest?.call(tab.host, '', '');
+      }
     });
     w.setOnUrlRequestCallback((url) {
       onUrlChanged?.call(url);

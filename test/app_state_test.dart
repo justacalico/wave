@@ -250,7 +250,7 @@ void main() {
     test('credential prompt surfaces origin', () async {
       final app = await makeAppState();
       final t = app.newTab(url: 'https://login.dev');
-      app.controllerFor(t).onCredentialRequest?.call('login.dev');
+      app.controllerFor(t).onCredentialRequest?.call('login.dev', 'me', 'pw');
       expect(app.pendingCredentialOrigin, 'login.dev');
       expect(app.pendingCredentialTabId, t.id);
       app.clearPendingCredential();

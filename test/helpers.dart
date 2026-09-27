@@ -10,12 +10,19 @@ final Map<String, String> fakeSecrets = {};
 
 Directory? _tempDir;
 
+/// The fake HttpOverrides the test binding installs. Loopback tests that
+/// need real sockets set `HttpOverrides.global = null`; restore this after
+/// them or later widget tests leak real NetworkImage fetches into FakeAsync.
+HttpOverrides? _savedHttpOverrides;
+
 /// Wires Hive + path_provider + secure storage to a temp dir so AppState
 /// and services behave exactly like production, minus the OS.
 /// Pass [clear]=false to simulate a restart on the same storage.
 Future<void> setupTestEnv({bool clear = true}) async {
   TestWidgetsFlutterBinding.ensureInitialized();
   _tempDir ??= await Directory.systemTemp.createTemp('wave_test');
+  _savedHttpOverrides ??= HttpOverrides.current;
+  HttpOverrides.global = _savedHttpOverrides;
 
   const pathChannel = MethodChannel('plugins.flutter.io/path_provider');
   TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger

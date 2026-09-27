@@ -138,7 +138,10 @@ class _BrowserShellState extends State<BrowserShell>
       },
       const SingleActivator(LogicalKeyboardKey.keyQ, control: true):
           () {
-        if (!kIsWeb) exit(0);
+        if (kIsWeb || Platform.environment.containsKey('FLUTTER_TEST')) {
+          return;
+        }
+        exit(0);
       },
     };
   }
@@ -309,7 +312,12 @@ class _PanelHost extends StatelessWidget {
             ),
           ),
           const Divider(height: 1),
-          Expanded(child: child),
+          Expanded(
+            child: Material(
+              color: Colors.transparent,
+              child: child,
+            ),
+          ),
         ],
       ),
     );
