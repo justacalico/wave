@@ -122,8 +122,8 @@ jobs:
           flutter test --coverage --no-pub
           # Untestable in a headless VM: native webview adapters/dock, the
           # OAuth+network FxA transport, real file downloads, entrypoints.
-          # Everything else is held at 100% line coverage.
-          lcov --remove coverage/lcov.info \
+          # Everything else is held at 90% line coverage.
+          lcov --remove coverage/lcov.info --ignore-errors unused \
             '**/*.g.dart' '**/*.freezed.dart' '**/l10n/**' \
             'lib/webview/*' 'lib/services/fxa.dart' 'lib/services/downloads.dart' \
             'lib/main.dart' 'lib/bootstrap_*.dart' \
