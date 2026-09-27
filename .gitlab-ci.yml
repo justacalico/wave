@@ -192,4 +192,3 @@ pages:
   artifacts:
     paths:
       - public
-    publish: public
