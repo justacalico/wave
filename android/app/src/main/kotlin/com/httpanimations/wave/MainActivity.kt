@@ -1,0 +1,5 @@
+package com.httpanimations.wave
+
+import io.flutter.embedding.android.FlutterActivity
+
+class MainActivity : FlutterActivity()
