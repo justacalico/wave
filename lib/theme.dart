@@ -78,6 +78,15 @@ class WaveTheme {
           borderRadius: BorderRadius.circular(radiusLg),
         ),
       ),
+      popupMenuTheme: PopupMenuThemeData(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(radiusMd),
+        ),
+        color: scheme.surfaceContainerHighest,
+        textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+        labelTextStyle:
+            const WidgetStatePropertyAll(TextStyle(fontSize: 14)),
+      ),
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(

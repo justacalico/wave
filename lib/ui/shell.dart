@@ -513,28 +513,40 @@ class _MobileBar extends StatelessWidget {
                 size: 20,
                 color: scheme.onSurface.withValues(alpha: 0.75)),
             onSelected: (v) => _mobileMenu(context, v),
-            itemBuilder: (context) => const [
-              PopupMenuItem(
-                  value: 'bookmark', child: Text('Bookmark')),
-              PopupMenuItem(
-                  value: 'history', child: Text('History')),
-              PopupMenuItem(
-                  value: 'bookmarks', child: Text('Bookmarks')),
-              PopupMenuItem(
-                  value: 'downloads', child: Text('Downloads')),
-              PopupMenuItem(
-                  value: 'passwords', child: Text('Passwords')),
-              PopupMenuItem(
-                  value: 'private', child: Text('New private tab')),
-              PopupMenuItem(
-                  value: 'desktop',
-                  child: Text('Reload')),
-              PopupMenuItem(
-                  value: 'account', child: Text('Account & sync')),
-              PopupMenuItem(
-                  value: 'settings', child: Text('Settings')),
+            itemBuilder: (context) => [
+              _menuItem('bookmark', Icons.bookmark_outline_rounded,
+                  'Bookmark'),
+              _menuItem(
+                  'history', Icons.history_rounded, 'History'),
+              _menuItem('bookmarks', Icons.bookmarks_outlined,
+                  'Bookmarks'),
+              _menuItem('downloads',
+                  Icons.download_rounded, 'Downloads'),
+              _menuItem('passwords', Icons.lock_outline_rounded,
+                  'Passwords'),
+              _menuItem('private', Icons.visibility_off_outlined,
+                  'New private tab'),
+              _menuItem('desktop', Icons.refresh_rounded, 'Reload'),
+              _menuItem('account', Icons.person_outline_rounded,
+                  'Account & sync'),
+              _menuItem('settings', Icons.settings_outlined,
+                  'Settings'),
             ],
           ),
+        ],
+      ),
+    );
+  }
+
+  PopupMenuItem<String> _menuItem(
+      String value, IconData icon, String label) {
+    return PopupMenuItem<String>(
+      value: value,
+      child: Row(
+        children: [
+          Icon(icon, size: 18),
+          const SizedBox(width: 12),
+          Text(label),
         ],
       ),
     );
