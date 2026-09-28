@@ -1,0 +1,32 @@
+{
+  "name": "Wave",
+  "subtitle": "A quiet browser",
+  "description": "Vertical tabs, workspaces and Firefox Accounts sync on the system webview.",
+  "iconURL": "https://gitlab.com/HttpAnimations/wave/-/raw/main/assets/icon-1024.png",
+  "website": "https://gitlab.com/HttpAnimations/wave",
+  "patreon": {},
+  "apps": [
+    {
+      "name": "Wave",
+      "bundleIdentifier": "com.httpanimations.wave",
+      "developerName": "HttpAnimations",
+      "subtitle": "A quiet browser",
+      "localizedDescription": "Vertical tabs, workspaces and Firefox Accounts sync on the system webview.",
+      "iconURL": "https://gitlab.com/HttpAnimations/wave/-/raw/main/assets/icon-1024.png",
+      "tintColor": "#6DA8FF",
+      "category": "utilities",
+      "screenshots": [],
+      "versions": [
+        {
+          "version": "nightly",
+          "date": "2026-09-28T05:15:06Z",
+          "downloadURL": "https://gitlab.com/api/v4/projects/86963020/packages/generic/release-assets/nightly/wave-ios-arm64-unsigned.ipa",
+          "size": 9238276,
+          "minOSVersion": "15.0"
+        }
+      ],
+      "appPermissions": {},
+      "news": []
+    }
+  ]
+}
