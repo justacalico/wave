@@ -137,7 +137,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target: ${{ fromJson(needs.setup.outputs.targets) }}
+        include: ${{ fromJson(needs.setup.outputs.targets) }}
     env:
       VERSION: ${{ needs.setup.outputs.version }}
       BUILD_NUMBER: ${{ needs.setup.outputs.build_number }}
