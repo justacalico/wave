@@ -91,10 +91,15 @@ class VaultService extends ChangeNotifier {
     }
   }
 
+  /// Set by AppState so the account-unlock path checks sign-in rather than
+  /// unlocking for anyone.
+  bool Function()? accountAuth;
+
   /// FxA unlock path: the signed-in account is the auth factor, so the key
   /// only needs secure storage.
   Future<bool> unlockWithAccount() async {
     if (_hasMasterPassword) return false;
+    if (accountAuth?.call() == false) return false;
     await ensureKey();
     return true;
   }
@@ -107,6 +112,7 @@ class VaultService extends ChangeNotifier {
   }
 
   Future<void> upsert(VaultEntry entry) async {
+    if (_locked) return;
     final i = _entries.indexWhere((e) => e.id == entry.id);
     if (i >= 0) {
       _entries[i] = entry;
@@ -118,6 +124,7 @@ class VaultService extends ChangeNotifier {
   }
 
   Future<void> remove(String id) async {
+    if (_locked) return;
     _entries.removeWhere((e) => e.id == id);
     await _persist();
     notifyListeners();
@@ -160,6 +167,25 @@ class VaultService extends ChangeNotifier {
   /// Encrypted payload for sync (round-trips through SyncRecord.payload).
   Future<String?> exportEncrypted() async {
     return Storage.read(Storage.vault, _entriesKey);
+  }
+
+  /// Seal a single string with the vault key — used to keep synced
+  /// password records ciphertext-only even on plaintext backends.
+  Future<String?> seal(String plaintext) async {
+    final key = _key;
+    if (key == null) return null;
+    return _seal(utf8.encode(plaintext), key);
+  }
+
+  /// Inverse of [seal]; null when locked or corrupted.
+  Future<String?> open(String sealed) async {
+    final key = _key;
+    if (key == null) return null;
+    try {
+      return utf8.decode(await _open(sealed, key));
+    } catch (_) {
+      return null;
+    }
   }
 
   static Future<SecretKey> _deriveWrapKey(

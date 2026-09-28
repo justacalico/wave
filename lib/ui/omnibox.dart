@@ -29,6 +29,7 @@ class OmniboxState extends State<Omnibox> {
   @override
   void initState() {
     super.initState();
+    if (widget.autofocus) _focus.requestFocus();
     _focus.addListener(() {
       if (_focus.hasFocus) {
         _controller.selection = TextSelection(
@@ -59,7 +60,11 @@ class OmniboxState extends State<Omnibox> {
     final tab = app.activeTab;
     final text = tab?.url ?? '';
     if (!_focus.hasFocus && _controller.text != text) {
-      _controller.text = text;
+      // Mutating the controller during build would fire a synchronous
+      // listener -> setState during build. Defer to after the frame.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && !_focus.hasFocus) _controller.text = text;
+      });
     }
   }
 
@@ -227,7 +232,6 @@ class OmniboxState extends State<Omnibox> {
     return CompositedTransformTarget(
       link: _link,
       child: Focus(
-        focusNode: _focus,
         onKeyEvent: _onKey,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),

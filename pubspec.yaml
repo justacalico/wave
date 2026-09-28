@@ -49,8 +49,10 @@ dependencies:
   desktop_webview_window: ^0.3.0
   flutter_inappwebview: ^6.1.5
   flutter_widget_from_html_core: ^0.17.4
+  collection: ^1.19.1
 
 dev_dependencies:
+  flutter_launcher_icons: ^0.14.4
   flutter_test:
     sdk: flutter
 
@@ -102,3 +104,10 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: assets/icon-1024.png
+  adaptive_icon_background: "#0D1017"
+  adaptive_icon_foreground: assets/icon-1024.png

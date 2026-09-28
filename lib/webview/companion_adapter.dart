@@ -18,12 +18,23 @@ class CompanionTabController extends TabWebController {
   Rect _rect = Rect.zero;
   bool _engineVisible = false;
   bool _launched = false;
+  bool _broken = false;
+  bool _disposed = false;
 
   /// One-shot: the window is created lazily on first activation so opening
-  /// the app with 20 restored tabs does not spawn 20 windows.
-  Future<void> ensureCreated() async {
-    if (_webview != null) return;
-    _webview = await WebviewWindow.create(
+  /// the app with 20 restored tabs does not spawn 20 windows. Failure (no
+  /// WebKitGTK runtime, headless test VM) leaves the tab inert rather than
+  /// crashing the shell.
+  Future<void>? _creating;
+
+  Future<void> ensureCreated() {
+    if (_webview != null || _broken) return Future.value();
+    return _creating ??= _create().whenComplete(() => _creating = null);
+  }
+
+  Future<void> _create() async {
+    try {
+      _webview = await WebviewWindow.create(
       configuration: CreateConfiguration(
         windowWidth: _rect.width.toInt().clamp(200, 10000),
         windowHeight: _rect.height.toInt().clamp(200, 10000),
@@ -35,13 +46,30 @@ class CompanionTabController extends TabWebController {
         userDataFolderWindows:
             tab.isPrivate ? 'wave_private_${tab.id}' : 'wave_default',
       ),
-    );
+      );
+    } catch (_) {
+      _broken = true;
+      return;
+    }
     final w = _webview!;
+    if (_disposed) {
+      w.close();
+      return;
+    }
     w.addScriptToExecuteOnDocumentCreated(kWavePageScript);
     w.registerJavaScriptMessageHandler('waveMeta', _onMeta);
     w.registerJavaScriptMessageHandler('waveCredentialSubmit',
         (name, body) {
-      onCredentialRequest?.call(tab.host);
+      try {
+        final m =
+            jsonDecode(body as String) as Map<String, dynamic>;
+        onCredentialRequest?.call(
+            m['origin'] as String? ?? tab.host,
+            m['username'] as String? ?? '',
+            m['password'] as String? ?? '');
+      } catch (_) {
+        onCredentialRequest?.call(tab.host, '', '');
+      }
     });
     w.setOnUrlRequestCallback((url) {
       onUrlChanged?.call(url);
@@ -51,7 +79,10 @@ class CompanionTabController extends TabWebController {
     w.setOnHistoryChangedCallback((canBack, canForward) {
       setNavState(canBack, canForward);
     });
-    unawaited(w.onClose.then((_) => _webview = null));
+    unawaited(w.onClose.then((_) {
+      _webview = null;
+      _launched = false;
+    }));
   }
 
   void _onMeta(String name, dynamic body) {
@@ -83,7 +114,9 @@ class CompanionTabController extends TabWebController {
 
   @override
   Future<void> loadUrl(String url) async {
+    if (_disposed) return;
     await ensureCreated();
+    if (_disposed || _broken) return;
     _launched = true;
     _webview?.launch(url);
     loading.value = true;
@@ -123,6 +156,7 @@ class CompanionTabController extends TabWebController {
   @override
   void setEngineVisible(bool visible) {
     _engineVisible = visible;
+    if (_disposed) return;
     if (visible && !_launched && tab.url.isNotEmpty) {
       unawaited(loadUrl(tab.url));
       return;
@@ -143,6 +177,7 @@ class CompanionTabController extends TabWebController {
 
   @override
   Future<void> dispose() async {
+    _disposed = true;
     _webview?.close();
     _webview = null;
     progress.dispose();

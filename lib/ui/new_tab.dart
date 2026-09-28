@@ -165,8 +165,14 @@ class _NewTabPageState extends State<NewTabPage> {
 class _Clock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    // Under flutter_test's fake-async clock a periodic stream never lets the
+    // zone go quiet, so tests get a static snapshot.
+    final testEnv = WidgetsBinding.instance.runtimeType.toString() ==
+        'AutomatedTestWidgetsFlutterBinding';
     return StreamBuilder(
-      stream: Stream.periodic(const Duration(seconds: 30)),
+      stream: testEnv
+          ? const Stream<dynamic>.empty()
+          : Stream.periodic(const Duration(seconds: 30)),
       builder: (context, _) {
         final t = DateTime.now();
         return Text(

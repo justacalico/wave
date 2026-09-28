@@ -78,15 +78,32 @@ class DownloadsService extends ChangeNotifier {
       }
       item.totalBytes = res.contentLength;
       final sink = target.openWrite();
-      await for (final chunk in res) {
-        sink.add(chunk);
-        item.receivedBytes += chunk.length;
-        notifyListeners();
+      try {
+        await for (final chunk in res) {
+          // A cancel while streaming owns the state from here on.
+          if (item.state != DownloadState.inProgress) {
+            _finish(item);
+            return;
+          }
+          sink.add(chunk);
+          item.receivedBytes += chunk.length;
+          notifyListeners();
+        }
+        await sink.close();
+        if (item.state == DownloadState.inProgress) {
+          item.state = DownloadState.completed;
+        }
+      } catch (_) {
+        await sink.close();
+        await target.delete().catchError((_) => target);
+        if (item.state == DownloadState.inProgress) {
+          item.state = DownloadState.failed;
+        }
       }
-      await sink.close();
-      item.state = DownloadState.completed;
     } catch (_) {
-      item.state = DownloadState.failed;
+      if (item.state == DownloadState.inProgress) {
+        item.state = DownloadState.failed;
+      }
     }
     _finish(item);
   }

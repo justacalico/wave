@@ -77,7 +77,7 @@ class LandingPage extends StatelessWidget {
           children: [
             const _Nav(),
             SizedBox(
-              height: wide ? 560 : 640,
+              height: wide ? 560 : 740,
               child: const Stack(
                 children: [
                   Positioned.fill(child: _WaveField()),
@@ -103,30 +103,44 @@ class _Nav extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 22),
-      child: Row(
-        children: [
-          const _WaveMark(size: 22),
-          const SizedBox(width: 10),
-          Text('wave',
-              style: Theme.of(context)
-                  .textTheme
-                  .titleMedium
-                  ?.copyWith(
-                      fontWeight: FontWeight.w600, letterSpacing: -0.4)),
-          const Spacer(),
-          _NavLink(
-              label: 'Download',
-              onTap: () => launchUrl(Uri.parse(LandingPage.releases))),
-          const SizedBox(width: 24),
-          _NavLink(
-              label: 'Source',
-              onTap: () => launchUrl(Uri.parse(LandingPage.source))),
-          const SizedBox(width: 24),
-          _NavLink(
-              label: 'AGPL-3.0',
-              onTap: () => launchUrl(Uri.parse(
-                  '${LandingPage.source}/-/blob/main/LICENSE'))),
-        ],
+      child: LayoutBuilder(
+        builder: (context, c) => Row(
+          children: [
+            const _WaveMark(size: 22),
+            const SizedBox(width: 10),
+            Text('wave',
+                style: Theme.of(context)
+                    .textTheme
+                    .titleMedium
+                    ?.copyWith(
+                        fontWeight:
+                            FontWeight.w600,
+                        letterSpacing: -0.4)),
+            const Spacer(),
+            if (c.maxWidth > 560) ...[
+              _NavLink(
+                  label: 'Download',
+                  onTap: () =>
+                      launchUrl(Uri.parse(LandingPage.releases))),
+              const SizedBox(width: 24),
+              _NavLink(
+                  label: 'Source',
+                  onTap: () =>
+                      launchUrl(Uri.parse(LandingPage.source))),
+              const SizedBox(width: 24),
+              _NavLink(
+                  label: 'AGPL-3.0',
+                  onTap: () => launchUrl(Uri.parse(
+                      '${LandingPage.source}/-/blob/main/LICENSE'))),
+            ] else
+              IconButton(
+                icon: const Icon(Icons.download_rounded,
+                    size: 18, color: Color(0xFF9DB4D4)),
+                onPressed: () =>
+                    launchUrl(Uri.parse(LandingPage.releases)),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -497,7 +511,7 @@ class _EngineSection extends StatelessWidget {
         physics: const NeverScrollableScrollPhysics(),
         mainAxisSpacing: 1,
         crossAxisSpacing: 1,
-        childAspectRatio: wide ? 4.4 : 5.2,
+        mainAxisExtent: wide ? 144 : 172,
         children: [
           for (final e in engines)
             Container(
@@ -609,15 +623,18 @@ class _SyncDiagram extends StatelessWidget {
                       : const Color(0xFF3A4557),
                 ),
                 const SizedBox(width: 12),
-                Text(
-                  nodes[i].$1,
-                  style: const TextStyle(
-                    fontFamily: 'monospace',
-                    fontSize: 13,
-                    color: Color(0xFFE8ECF4),
+                Expanded(
+                  child: Text(
+                    nodes[i].$1,
+                    style: const TextStyle(
+                      fontFamily: 'monospace',
+                      fontSize: 13,
+                      color: Color(0xFFE8ECF4),
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                const Spacer(),
+                const SizedBox(width: 8),
                 Text(nodes[i].$2,
                     style: Theme.of(context).textTheme.bodySmall),
               ],
@@ -659,9 +676,13 @@ class _Footer extends StatelessWidget {
           Text('wave',
               style: Theme.of(context).textTheme.bodySmall),
           const Spacer(),
-          Text(
-            'AGPL-3.0 · Flutter · system webview',
-            style: Theme.of(context).textTheme.labelSmall,
+          Flexible(
+            child: Text(
+              'AGPL-3.0 · Flutter · system webview',
+              style: Theme.of(context).textTheme.labelSmall,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.right,
+            ),
           ),
         ],
       ),

@@ -37,6 +37,7 @@ class _BrowserShellState extends State<BrowserShell>
     with WidgetsBindingObserver {
   final GlobalKey<OmniboxState> _omniboxKey = GlobalKey();
   late final CompanionDock? _dock;
+  late AppState _app;
 
   @override
   void initState() {
@@ -44,6 +45,14 @@ class _BrowserShellState extends State<BrowserShell>
     _dock = CompanionDock.maybeCreate();
     unawaited(_dock?.init());
     WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Cache once: during tree teardown a dirty rebuild can run while the
+    // provider is already gone from this element's ancestors.
+    _app = context.read<AppState>();
   }
 
   @override
@@ -61,7 +70,7 @@ class _BrowserShellState extends State<BrowserShell>
   }
 
   Map<ShortcutActivator, VoidCallback> get _shortcuts {
-    final app = context.read<AppState>();
+    final app = _app;
     return {
       const SingleActivator(LogicalKeyboardKey.keyT, control: true):
           () => app.newTab(),
@@ -129,7 +138,10 @@ class _BrowserShellState extends State<BrowserShell>
       },
       const SingleActivator(LogicalKeyboardKey.keyQ, control: true):
           () {
-        if (!kIsWeb) exit(0);
+        if (kIsWeb || Platform.environment.containsKey('FLUTTER_TEST')) {
+          return;
+        }
+        exit(0);
       },
     };
   }
@@ -300,7 +312,12 @@ class _PanelHost extends StatelessWidget {
             ),
           ),
           const Divider(height: 1),
-          Expanded(child: child),
+          Expanded(
+            child: Material(
+              color: Colors.transparent,
+              child: child,
+            ),
+          ),
         ],
       ),
     );
@@ -342,6 +359,7 @@ class _WindowTitleBar extends StatelessWidget {
           ),
           if (!Platform.isMacOS)
             SizedBox(
+              width: 138,
               height: 36,
               child: WindowCaption(
                 brightness: Theme.of(context).brightness,

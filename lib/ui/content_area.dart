@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -11,6 +12,7 @@ import '../webview/controller.dart';
 import '../webview/inapp_adapter.dart';
 import 'new_tab.dart';
 import 'omnibox.dart';
+import '../theme.dart';
 import 'reader.dart';
 import 'widgets.dart';
 
@@ -71,7 +73,64 @@ class ContentArea extends StatelessWidget {
                 data: app.readerData!,
                 onClose: () => app.setReaderData(null)),
           ),
+        if (app.pendingCredentialOrigin != null)
+          const Positioned(
+              top: 10, right: 12, child: _CredentialBanner()),
       ],
+    );
+  }
+}
+
+/// "Save password?" bubble under the toolbar, Zen/Firefox style.
+class _CredentialBanner extends StatelessWidget {
+  const _CredentialBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    final app = context.watch<AppState>();
+    final scheme = Theme.of(context).colorScheme;
+    final origin = app.pendingCredentialOrigin!;
+    final user = app.pendingCredentialUser ?? '';
+    return Material(
+      elevation: 6,
+      borderRadius: BorderRadius.circular(WaveTheme.radiusMd),
+      color: scheme.surfaceContainerHigh,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 320),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(14, 10, 8, 10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Save password for $origin?',
+                  style: Theme.of(context).textTheme.titleSmall),
+              if (user.isNotEmpty)
+                Text(user,
+                    style: Theme.of(context).textTheme.bodySmall,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  FilledButton.tonal(
+                    onPressed: () => unawaited(
+                        context.read<AppState>().savePendingCredential()),
+                    child: const Text('Save'),
+                  ),
+                  const SizedBox(width: 8),
+                  TextButton(
+                    onPressed: () =>
+                        context.read<AppState>().clearPendingCredential(),
+                    child: const Text('Not now'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

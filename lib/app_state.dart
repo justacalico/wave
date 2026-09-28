@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 
 import 'models.dart';
@@ -69,6 +70,7 @@ class AppState extends ChangeNotifier {
   // ------------------------------------------------------------------------
 
   Future<void> init() async {
+    vault.accountAuth = () => fxa.signedIn;
     await Storage.init();
     await fxa.restore();
     await vault.restore();
@@ -90,6 +92,7 @@ class AppState extends ChangeNotifier {
     restoreTabs = s.get('restoreTabs', defaultValue: true) as bool;
     recordHistory = s.get('recordHistory', defaultValue: true) as bool;
     readerFontSize = s.get('readerFontSize', defaultValue: 18.0) as double;
+    blockPopups = s.get('blockPopups', defaultValue: false) as bool;
   }
 
   void _saveSettings() {
@@ -101,6 +104,7 @@ class AppState extends ChangeNotifier {
     s.put('restoreTabs', restoreTabs);
     s.put('recordHistory', recordHistory);
     s.put('readerFontSize', readerFontSize);
+    s.put('blockPopups', blockPopups);
   }
 
   void _loadWorkspacesAndTabs() {
@@ -113,8 +117,12 @@ class AppState extends ChangeNotifier {
           id: 'work', name: 'Work', icon: 'briefcase', gradientIndex: 3));
       _saveWorkspaces();
     }
-    activeWorkspaceId =
-        Storage.read(Storage.workspaces, 'active') ?? workspaces.first.id;
+    final savedWs = Storage.read(Storage.workspaces, 'active');
+    activeWorkspaceId = savedWs != null &&
+            savedWs.isNotEmpty &&
+            workspaces.any((w) => w.id == savedWs)
+        ? savedWs
+        : workspaces.first.id;
 
     if (restoreTabs) {
       final tabsRaw = Storage.read(Storage.tabs, 'list');
@@ -140,7 +148,9 @@ class AppState extends ChangeNotifier {
   void _saveWorkspaces() {
     Storage.write(Storage.workspaces, 'list',
         jsonEncode(workspaces.map((w) => w.toJson()).toList()));
-    Storage.write(Storage.workspaces, 'active', activeWorkspaceId);
+    if (activeWorkspaceId.isNotEmpty) {
+      Storage.write(Storage.workspaces, 'active', activeWorkspaceId);
+    }
   }
 
   void _saveTabs() {
@@ -187,8 +197,10 @@ class AppState extends ChangeNotifier {
       final t = newTab(workspaceId: id);
       activeTabId = t.id;
     } else {
-      activeTabId = wsTabs.last.id;
-      wsTabs.last.lastActiveAt = DateTime.now();
+      final latest = wsTabs.reduce(
+          (a, b) => b.lastActiveAt.isAfter(a.lastActiveAt) ? b : a);
+      activeTabId = latest.id;
+      latest.lastActiveAt = DateTime.now();
     }
     splitTabId = null;
     _saveWorkspaces();
@@ -215,9 +227,11 @@ class AppState extends ChangeNotifier {
 
   void removeWorkspace(String id) {
     if (workspaces.length <= 1) return;
+    _removingWorkspace = true;
     for (final t in tabs.where((t) => t.workspaceId == id).toList()) {
       closeTab(t.id);
     }
+    _removingWorkspace = false;
     workspaces.removeWhere((w) => w.id == id);
     if (activeWorkspaceId == id) {
       activeWorkspaceId = workspaces.first.id;
@@ -272,7 +286,8 @@ class AppState extends ChangeNotifier {
     c.onNewWindow = (url) => openUrlInNewTab(url);
     c.onDownloadStart = (url, filename) =>
         unawaited(downloads.start(url, filename));
-    c.onCredentialRequest = (origin) => _onCredentialSubmit(tab, origin);
+    c.onCredentialRequest =
+        (origin, user, pass) => _onCredentialSubmit(tab, origin, user, pass);
     return c;
   }
 
@@ -302,21 +317,43 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  void _onCredentialSubmit(BrowserTab tab, String origin) {
+  void _onCredentialSubmit(
+      BrowserTab tab, String origin, String user, String pass) {
+    if (tab.isPrivate || vault.locked) return;
     // Re-surfaced to the UI via a pending-prompt flag.
     pendingCredentialOrigin = origin;
     pendingCredentialTabId = tab.id;
+    pendingCredentialUser = user;
+    pendingCredentialPassword = pass;
     notifyListeners();
   }
 
   /// Set when a page submits a password form; the shell shows a save sheet.
   String? pendingCredentialOrigin;
   String? pendingCredentialTabId;
+  String? pendingCredentialUser;
+  String? pendingCredentialPassword;
 
   void clearPendingCredential() {
     pendingCredentialOrigin = null;
     pendingCredentialTabId = null;
+    pendingCredentialUser = null;
+    pendingCredentialPassword = null;
     notifyListeners();
+  }
+
+  /// Persist the pending credential into the vault under the page origin.
+  Future<void> savePendingCredential() async {
+    final origin = pendingCredentialOrigin;
+    if (origin == null || origin.isEmpty) return;
+    await vault.upsert(VaultEntry(
+      id: 'cred-${DateTime.now().microsecondsSinceEpoch}',
+      origin:
+          origin.startsWith('http') ? origin : 'https://$origin',
+      username: pendingCredentialUser ?? '',
+      password: pendingCredentialPassword ?? '',
+    ));
+    clearPendingCredential();
   }
 
   BrowserTab newTab({
@@ -375,6 +412,10 @@ class AppState extends ChangeNotifier {
     if (t != null) {
       t.lastActiveAt = DateTime.now();
       t.suspended = false;
+      if (t.workspaceId != activeWorkspaceId) {
+        activeWorkspaceId = t.workspaceId;
+        _saveWorkspaces();
+      }
       if (splitTabId == id) splitTabId = null;
     }
     _syncEngineVisibility();
@@ -397,7 +438,8 @@ class AppState extends ChangeNotifier {
         activeTabId = wsTabs.first.id;
       } else {
         activeTabId = null;
-        if (closing.workspaceId == activeWorkspaceId) {
+        if (closing.workspaceId == activeWorkspaceId &&
+            !_removingWorkspace) {
           activeTabId = newTab(workspaceId: closing.workspaceId).id;
         }
       }
@@ -410,14 +452,23 @@ class AppState extends ChangeNotifier {
   /// [newIndex] is the destination index already adjusted by
   /// ReorderableListView's onReorderItem contract.
   void reorderTab(String workspaceId, int oldIndex, int newIndex) {
-    final wsTabs = tabsFor(workspaceId);
-    if (oldIndex < 0 || oldIndex >= wsTabs.length) return;
-    if (newIndex > wsTabs.length) newIndex = wsTabs.length;
-    final t = wsTabs.removeAt(oldIndex);
-    wsTabs.insert(newIndex, t);
-    // Rebuild global order: everything not in this workspace keeps position.
-    tabs.removeWhere((e) => e.workspaceId == workspaceId);
-    tabs.addAll(wsTabs);
+    final normals = tabsFor(workspaceId)
+        .where((t) => t.kind == TabKind.normal)
+        .toList();
+    if (oldIndex < 0 || oldIndex >= normals.length) return;
+    if (newIndex > normals.length) newIndex = normals.length;
+    final t = normals.removeAt(oldIndex);
+    normals.insert(newIndex, t);
+    // Reassign normals in place so pinned/essential slots keep position.
+    final slots = <int>[
+      for (var k = 0; k < tabs.length; k++)
+        if (tabs[k].workspaceId == workspaceId &&
+            tabs[k].kind == TabKind.normal)
+          k,
+    ];
+    for (var k = 0; k < slots.length; k++) {
+      tabs[slots[k]] = normals[k];
+    }
     _saveTabs();
     notifyListeners();
   }
@@ -433,6 +484,7 @@ class AppState extends ChangeNotifier {
     final t = tabs.firstWhere((e) => e.id == tabId);
     if (t.workspaceId == workspaceId) return;
     t.workspaceId = workspaceId;
+    if (splitTabId == tabId) splitTabId = null;
     if (activeTabId == tabId) {
       final remaining = tabsFor(activeWorkspaceId);
       activeTabId = remaining.isEmpty ? null : remaining.last.id;
@@ -444,6 +496,17 @@ class AppState extends ChangeNotifier {
 
   void reloadTab(String id) =>
       unawaited(_controllers[id]?.reload() ?? Future.value());
+
+  /// Clone a tab — same url, same workspace, lands next to the original.
+  BrowserTab? duplicateTab(String id) {
+    final src = tabs.firstWhereOrNull((t) => t.id == id);
+    if (src == null) return null;
+    final t = newTab(
+        url: src.url,
+        workspaceId: src.workspaceId,
+        isPrivate: src.isPrivate);
+    return t;
+  }
 
   void suspendInactiveTabs({int keepAlive = 6}) {
     final active = workspaceTabs
@@ -460,6 +523,9 @@ class AppState extends ChangeNotifier {
     }
     notifyListeners();
   }
+
+  /// Suppresses closeTab's auto-newTab while a workspace is being torn down.
+  bool _removingWorkspace = false;
 
   /// Engine visibility for the companion-window platform.
   void _syncEngineVisibility() {
@@ -541,11 +607,18 @@ class AppState extends ChangeNotifier {
     }
     if (input.startsWith('about:') || input.startsWith('file:')) return true;
     final uri = Uri.tryParse('https://$input');
-    if (uri == null) return false;
+    if (uri == null || uri.host.isEmpty) return false;
+    // localhost / IP literals with optional port are addresses, not searches.
+    final bareHost = uri.host;
+    if (bareHost == 'localhost' ||
+        RegExp(r'^\d{1,3}(\.\d{1,3}){3}$').hasMatch(bareHost) ||
+        bareHost == '::1') {
+      return true;
+    }
     // One dotted label pair minimum and a plausible TLD.
-    return uri.host.contains('.') &&
-        !uri.host.contains('..') &&
-        uri.host.split('.').last.length >= 2;
+    return bareHost.contains('.') &&
+        !bareHost.contains('..') &&
+        bareHost.split('.').last.length >= 2;
   }
 
   String _normalizeUrl(String input) {
@@ -587,6 +660,7 @@ class AppState extends ChangeNotifier {
 
   void removeBookmark(String id) {
     bookmarks.removeWhere((b) => b.id == id);
+    markDeleted('bookmarks', id);
     _saveBookmarks();
     notifyListeners();
   }
@@ -604,9 +678,13 @@ class AppState extends ChangeNotifier {
     }
     if (history.length > 5000) history.removeRange(5000, history.length);
     _saveHistory();
+    notifyListeners();
   }
 
   void clearHistory() {
+    for (final h in history) {
+      markDeleted('history', base64Url.encode(utf8.encode(h.url)));
+    }
     history.clear();
     _saveHistory();
     notifyListeners();
@@ -720,13 +798,44 @@ class AppState extends ChangeNotifier {
   // Sync
   // ------------------------------------------------------------------------
 
-  Map<String, List<SyncRecord>> _localRecords() {
+  /// Track a local deletion so the record doesn't resurrect on next sync.
+  void markDeleted(String collection, String id) {
+    final key = 'tombstones_$collection';
+    final list = decodeJsonList(
+        Storage.read(Storage.sync, key), (j) => j as String);
+    if (!list.contains(id)) {
+      list.add(id);
+      Storage.write(Storage.sync, key, jsonEncode(list));
+    }
+  }
+
+  List<String> _tombstones(String collection) => decodeJsonList(
+      Storage.read(Storage.sync, 'tombstones_$collection'),
+      (j) => j as String);
+
+  static const _tombstone = '{"tombstone":true}';
+
+  Future<Map<String, List<SyncRecord>>> _localRecords() async {
     double ts(Map<String, dynamic> j, String key) =>
         DateTime.tryParse(j[key] as String? ?? '')
                 ?.millisecondsSinceEpoch
                 .toDouble() ??
             0;
-    return {
+    // Password records are sealed with the vault key even before the sync
+    // backend's own encryption, so plaintext never lands on a relay.
+    final passwords = <SyncRecord>[];
+    if (!vault.locked) {
+      for (final e in vault.entries) {
+        final sealed = await vault.seal(jsonEncode(e.toJson()));
+        if (sealed != null) {
+          passwords.add(SyncRecord(
+              id: e.id,
+              payload: sealed,
+              modified: ts(e.toJson(), 'updatedAt') / 1000));
+        }
+      }
+    }
+    final out = {
       'bookmarks': bookmarks
           .map((b) => SyncRecord(
               id: b.id,
@@ -740,14 +849,7 @@ class AppState extends ChangeNotifier {
               payload: jsonEncode(h.toJson()),
               modified: ts(h.toJson(), 'lastVisited') / 1000))
           .toList(),
-      'passwords': vault.locked
-          ? []
-          : vault.entries
-              .map((e) => SyncRecord(
-                  id: e.id,
-                  payload: jsonEncode(e.toJson()),
-                  modified: ts(e.toJson(), 'updatedAt') / 1000))
-              .toList(),
+      'passwords': passwords,
       'tabs': tabs
           .where((t) => !t.isPrivate && t.url.isNotEmpty)
           .map((t) => SyncRecord(
@@ -756,12 +858,26 @@ class AppState extends ChangeNotifier {
               modified: t.lastActiveAt.millisecondsSinceEpoch / 1000))
           .toList(),
     };
+    // Tombstones travel as records so deletions propagate.
+    final now = DateTime.now().millisecondsSinceEpoch / 1000;
+    for (final col in SyncService.collections) {
+      for (final id in _tombstones(col)) {
+        out[col]!.add(SyncRecord(
+            id: id, payload: _tombstone, modified: now));
+      }
+    }
+    return out;
   }
 
+  static bool _isTombstone(SyncRecord r) => r.payload == _tombstone;
+
   void _applyMerged(String collection, List<SyncRecord> records) {
+    final live = records.where((r) => !_isTombstone(r)).toList();
+    final dead = records.where(_isTombstone).map((r) => r.id).toSet();
     switch (collection) {
       case 'bookmarks':
-        final incoming = records
+        bookmarks.removeWhere((b) => dead.contains(b.id));
+        final incoming = live
             .map((r) =>
                 Bookmark.fromJson(jsonDecode(r.payload) as Map<String, dynamic>))
             .toList();
@@ -775,7 +891,11 @@ class AppState extends ChangeNotifier {
         _saveBookmarks();
         break;
       case 'history':
-        final incoming = records
+        final deadUrls = dead
+            .map((id) => utf8.decode(base64Url.decode(id)))
+            .toSet();
+        history.removeWhere((h) => deadUrls.contains(h.url));
+        final incoming = live
             .map((r) => HistoryEntry.fromJson(
                 jsonDecode(r.payload) as Map<String, dynamic>))
             .toList();
@@ -795,12 +915,15 @@ class AppState extends ChangeNotifier {
         break;
       case 'passwords':
         if (!vault.locked) {
-          for (final r in records) {
-            try {
-              final e = VaultEntry.fromJson(
-                  jsonDecode(r.payload) as Map<String, dynamic>);
-              unawaited(vault.upsert(e));
-            } catch (_) {}
+          for (final r in live) {
+            unawaited(vault.open(r.payload).then((plain) {
+              if (plain == null) return;
+              vault.upsert(VaultEntry.fromJson(
+                  jsonDecode(plain) as Map<String, dynamic>));
+            }));
+          }
+          for (final id in dead) {
+            unawaited(vault.remove(id));
           }
         }
         break;
@@ -812,7 +935,7 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> syncNow() async {
-    final merged = await sync.syncCollections(_localRecords());
+    final merged = await sync.syncCollections(await _localRecords());
     for (final entry in merged.entries) {
       _applyMerged(entry.key, entry.value);
     }

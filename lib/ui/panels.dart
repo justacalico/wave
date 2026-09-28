@@ -78,7 +78,12 @@ class _PanelFrame extends StatelessWidget {
             ),
           ),
           const Divider(height: 1),
-          Expanded(child: child),
+          Expanded(
+            child: Material(
+              color: Colors.transparent,
+              child: child,
+            ),
+          ),
         ],
       ),
     );

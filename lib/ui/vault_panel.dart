@@ -403,5 +403,10 @@ void _editEntry(BuildContext context, VaultEntry? existing) {
         ],
       ),
     ),
-  );
+  ).then((_) {
+    origin.dispose();
+    username.dispose();
+    password.dispose();
+    note.dispose();
+  });
 }
