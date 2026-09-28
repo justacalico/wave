@@ -459,6 +459,7 @@ jobs:
           path: artifacts
 
       - name: Prepare release assets
+        if: ${{ steps.existing.outputs.exists != 'true' }}
         run: |
           set -euo pipefail
           mkdir -p release-assets
@@ -466,6 +467,7 @@ jobs:
           ls -la release-assets/
 
       - name: Generate checksums
+        if: ${{ steps.existing.outputs.exists != 'true' }}
         working-directory: release-assets
         run: |
           sha256sum * > ../SHA256SUMS.txt
@@ -529,12 +531,30 @@ jobs:
             git push origin "$TAG" 2>/dev/null || true
           fi
 
+      # A create_release dispatch pushes the tag, which triggers this same
+      # workflow on refs/tags/v — skip the second release when the dispatch
+      # run already published it.
+      - name: Check for existing release
+        if: startsWith(github.ref, 'refs/tags/v')
+        id: existing
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Download artifacts
+        if: ${{ steps.existing.outputs.exists != 'true' }}
         uses: actions/download-artifact@v4
         with:
           path: artifacts
 
       - name: Prepare release assets
+        if: ${{ steps.existing.outputs.exists != 'true' }}
         run: |
           set -euo pipefail
           mkdir -p release-assets
@@ -542,10 +562,12 @@ jobs:
           ls -la release-assets/
 
       - name: Generate checksums
+        if: ${{ steps.existing.outputs.exists != 'true' }}
         working-directory: release-assets
         run: sha256sum * > ../SHA256SUMS.txt
 
       - name: Create release
+        if: ${{ steps.existing.outputs.exists != 'true' }}
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.meta.outputs.release_tag }}

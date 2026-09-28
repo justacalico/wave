@@ -181,7 +181,10 @@ class _InAppTabViewState extends State<InAppTabView>
         final url = action.request.url;
         if (url == null) return NavigationActionPolicy.ALLOW;
         final scheme = url.scheme;
-        if (scheme == 'http' || scheme == 'https' || scheme == 'about') {
+        if (scheme == 'http' ||
+            scheme == 'https' ||
+            scheme == 'about' ||
+            scheme == 'file') {
           return NavigationActionPolicy.ALLOW;
         }
         // Custom schemes (mailto:, intent:, etc.) are left to the OS.

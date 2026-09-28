@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -35,10 +36,10 @@ class _FindBarState extends State<FindBar> {
     final tab = app.activeTab;
     if (tab == null) return;
     final c = app.controllerOf(tab.id);
-    final q = _query.text.replaceAll("'", "\\'");
     // window.find is universal across WKWebView/WebView2/WebKitGTK.
+    // jsonEncode gives us a fully-escaped JS string literal.
     c?.evaluateJavaScript(
-        "window.find('$q', false, $backwards, true, false, false, false)");
+        'window.find(${jsonEncode(_query.text)}, false, $backwards, true, false, false, false)');
   }
 
   void _close(AppState app) {

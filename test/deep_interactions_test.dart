@@ -206,7 +206,7 @@ void main() {
 
     testWidgets('credential banner appears and dismisses', (tester) async {
       late AppState app;
-      app = await pump(tester, seed: (a) {
+      app = await pump(tester, preseed: fakeVaultKey, seed: (a) {
         final t = a.newTab(url: 'https://login.dev');
         a.controllerFor(t).onCredentialRequest?.call('login.dev', 'me', 'pw');
       });

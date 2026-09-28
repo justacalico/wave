@@ -158,6 +158,10 @@ github-release-sync:
   script:
     - bash scripts/sync-from-github.sh
     - bash scripts/update-altstore.sh
+  artifacts:
+    paths:
+      - release-assets/
+    when: always
 
 # Publishes the web landing page (build/web tarball from the synced release)
 # plus the AltStore source at https://httpanimations.gitlab.io/wave/.
@@ -174,14 +178,12 @@ pages:
     - apk add --no-cache bash curl jq github-cli
     - bash scripts/install-glab.sh
   script:
-    - mkdir -p public
+    - mkdir -p public release-assets
     - |
       RELEASE_TAG="${RELEASE_TAG:-nightly}"
-      cd release-assets 2>/dev/null || mkdir -p ../release-assets && cd ../release-assets
-      if [ ! -f wave-web.tar.gz ]; then
-        gh release download "$RELEASE_TAG" -R justacalico/wave --dir . --pattern 'wave-web.tar.gz' 2>/dev/null || true
+      if [ ! -f release-assets/wave-web.tar.gz ]; then
+        gh release download "$RELEASE_TAG" -R justacalico/wave --dir release-assets --pattern 'wave-web.tar.gz' 2>/dev/null || true
       fi
-      cd ..
       if [ -f release-assets/wave-web.tar.gz ]; then
         tar -xzf release-assets/wave-web.tar.gz -C public
       else

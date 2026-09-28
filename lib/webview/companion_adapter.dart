@@ -25,8 +25,14 @@ class CompanionTabController extends TabWebController {
   /// the app with 20 restored tabs does not spawn 20 windows. Failure (no
   /// WebKitGTK runtime, headless test VM) leaves the tab inert rather than
   /// crashing the shell.
-  Future<void> ensureCreated() async {
-    if (_webview != null || _broken) return;
+  Future<void>? _creating;
+
+  Future<void> ensureCreated() {
+    if (_webview != null || _broken) return Future.value();
+    return _creating ??= _create().whenComplete(() => _creating = null);
+  }
+
+  Future<void> _create() async {
     try {
       _webview = await WebviewWindow.create(
       configuration: CreateConfiguration(
@@ -46,6 +52,10 @@ class CompanionTabController extends TabWebController {
       return;
     }
     final w = _webview!;
+    if (_disposed) {
+      w.close();
+      return;
+    }
     w.addScriptToExecuteOnDocumentCreated(kWavePageScript);
     w.registerJavaScriptMessageHandler('waveMeta', _onMeta);
     w.registerJavaScriptMessageHandler('waveCredentialSubmit',
@@ -69,7 +79,10 @@ class CompanionTabController extends TabWebController {
     w.setOnHistoryChangedCallback((canBack, canForward) {
       setNavState(canBack, canForward);
     });
-    unawaited(w.onClose.then((_) => _webview = null));
+    unawaited(w.onClose.then((_) {
+      _webview = null;
+      _launched = false;
+    }));
   }
 
   void _onMeta(String name, dynamic body) {

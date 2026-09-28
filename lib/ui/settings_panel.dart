@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../app_state.dart';
+import '../storage.dart';
 import '../models.dart';
 import '../services/fxa.dart';
 
@@ -130,7 +131,8 @@ class _BackendPickerState extends State<_BackendPicker> {
     super.initState();
     final app = context.read<AppState>();
     _relayUrl = TextEditingController(text: app.sync.relayUrl ?? '');
-    _relayToken = TextEditingController();
+    _relayToken = TextEditingController(
+        text: Storage.read(Storage.settings, 'sync_relay_token') ?? '');
   }
 
   @override

@@ -79,5 +79,5 @@ if git diff --cached --quiet; then
   exit 0
 fi
 git commit -m "chore: 更新 AltStore 源"
-git push -o ci.skip origin HEAD:main
+git push -o ci.skip release-push HEAD:main
 echo "update-altstore: committed apps.json for $RELEASE_TAG"

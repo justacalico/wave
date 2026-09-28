@@ -141,10 +141,17 @@ class FxaService extends ChangeNotifier {
   ];
 
   Future<void> restore() async {
+    String? raw;
+    String? profileRaw;
+    String? epRaw;
     try {
-      final raw = await Storage.readSecret(_tokenKey);
-      final profileRaw = Storage.read(Storage.settings, _profileKey);
-      final epRaw = Storage.read(Storage.settings, _endpointsKey);
+      raw = await Storage.readSecret(_tokenKey);
+    } catch (_) {}
+    try {
+      profileRaw = Storage.read(Storage.settings, _profileKey);
+      epRaw = Storage.read(Storage.settings, _endpointsKey);
+    } catch (_) {}
+    try {
       if (epRaw != null) {
         endpoints = FxaEndpoints.fromJson(jsonDecode(epRaw));
       }
@@ -153,8 +160,8 @@ class FxaService extends ChangeNotifier {
         profile = FxAProfile.fromJson(jsonDecode(profileRaw));
       }
       if (_tokens != null && _tokens!.expired) await _refresh();
-      notifyListeners();
     } catch (_) {}
+    notifyListeners();
   }
 
   void configureEndpoints(FxaEndpoints ep) {
@@ -181,7 +188,9 @@ class FxaService extends ChangeNotifier {
       final state = _randomString(24);
       final keysJwk = await _generateKeysJwk();
 
-      _loopback = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      _loopback =
+          await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      _loopback!.idleTimeout = null;
       final port = _loopback!.port;
       final redirect = 'http://127.0.0.1:$port/oauth';
 
@@ -198,7 +207,10 @@ class FxaService extends ChangeNotifier {
         'action': 'signin',
       });
 
-      await launchUrl(authUri, mode: LaunchMode.externalApplication);
+      if (!await launchUrl(authUri,
+          mode: LaunchMode.externalApplication)) {
+        throw StateError('could not open the sign-in page');
+      }
       final code = await _waitForCode(state);
       await _exchange(code, verifier, redirect);
       await _fetchProfile();
@@ -225,6 +237,12 @@ class FxaService extends ChangeNotifier {
       return c.future;
     }
     server.listen((req) async {
+      // Stray requests (favicons, preflights) get a blank 200 and never
+      // disturb the auth wait.
+      if (req.uri.path != '/oauth') {
+        await req.response.close();
+        return;
+      }
       final params = req.uri.queryParameters;
       const ok = '<html><body style="font-family:sans-serif;text-align:center;'
           'padding:64px"><h2>Wave is signed in</h2>'
@@ -284,6 +302,9 @@ class FxaService extends ChangeNotifier {
     });
     if (res.statusCode != 200) {
       _tokens = null;
+      profile = null;
+      await Storage.deleteSecret(_tokenKey);
+      Storage.settings.delete(_profileKey);
       return;
     }
     final j = jsonDecode(res.body) as Map<String, dynamic>;
@@ -315,7 +336,10 @@ class FxaService extends ChangeNotifier {
         final j = jsonDecode(res.body) as Map<String, dynamic>;
         final bundle =
             j['https://identity.mozilla.com/apps/oldsync'] as Map?;
-        if (bundle != null) {
+        // Stock FxA wraps kB in a JWE keyed to our ephemeral keypair;
+        // until JWE unwrap lands we only accept bundles that carry kB
+        // directly (self-hosted stacks can return it plain).
+        if (bundle != null && bundle['kB'] != null) {
           _tokens!.scopedKey = bundle.cast<String, dynamic>();
           await _persistTokens();
           return _tokens!.scopedKey;
@@ -326,7 +350,7 @@ class FxaService extends ChangeNotifier {
   }
 
   Map<String, dynamic>? get scopedKey => _tokens?.scopedKey;
-  bool get hasSyncScope => _tokens?.scopedKey != null;
+  bool get hasSyncScope => _tokens?.scopedKey?['kB'] != null;
 
   Future<void> _fetchProfile() async {
     final token = await accessToken();

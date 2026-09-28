@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/services.dart';
@@ -97,8 +98,9 @@ Future<void> clearAllStorage() async {
 }
 
 /// A fresh AppState with test storage.
-Future<AppState> makeAppState() async {
+Future<AppState> makeAppState({void Function()? preseed}) async {
   await setupTestEnv();
+  preseed?.call();
   final app = AppState();
   await app.init();
   return app;
@@ -110,4 +112,18 @@ Future<AppState> restartApp() async {
   final app = AppState();
   await app.init();
   return app;
+}
+
+/// Seeds a fake FxA profile so `fxa.signedIn` is true after restore.
+void fakeProfileSeed() {
+  Storage.write(
+      Storage.settings,
+      'fxa_profile',
+      '{"uid":"u1","email":"cal@wave.dev"}');
+}
+
+/// Seeds a vault master key so `vault.locked` is false after restore.
+void fakeVaultKey() {
+  fakeSecrets['vault_master_key'] =
+      base64Encode(List<int>.filled(32, 7));
 }

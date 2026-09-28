@@ -118,13 +118,17 @@ void main() {
     testWidgets('unlock-with-account button', (tester) async {
       fakeSecrets['fxa_tokens'] =
           '{"accessToken":"a","expiresAt":"${DateTime.now().add(const Duration(hours: 1)).toIso8601String()}"}';
+      fakeProfileSeed();
       final app = await pump(tester,
           child: const Scaffold(
               body: SizedBox(width: 420, child: VaultPanel())),
           size: const Size(500, 900));
-      expect(find.byType(TextField), findsWidgets);
-      await app.vault.unlockWithAccount();
+      // signed-in account path renders the account-unlock button
+      expect(
+          find.textContaining('Unlock as'), findsOneWidget);
+      await tester.tap(find.textContaining('Unlock as'));
       await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
       expect(app.vault.locked, isFalse);
     });
   });

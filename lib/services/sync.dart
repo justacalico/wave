@@ -220,7 +220,7 @@ class FxaSyncBackend extends SyncBackend {
     final normalized = 'hawk.1.header\n'
         '$ts\n$nonce\n$method\n'
         '${uri.path}${uri.hasQuery ? '?${uri.query}' : ''}\n'
-        '${uri.host}\n${uri.port == 443 || uri.port == 80 ? 443 : uri.port}\n'
+        '${uri.host}\n${uri.port}\n'
         '$payloadHash\n\n';
     final mac = Hmac(sha256, utf8.encode(_hawkKey!))
         .convert(utf8.encode(normalized));
@@ -255,7 +255,8 @@ class FxaSyncBackend extends SyncBackend {
 
   /// Encrypts a plaintext payload into a sync-1.5 BSO payload object.
   Future<String> _encryptPayload(String plaintext) async {
-    final bundle = await _syncKeyBundle(utf8.encode(''));
+    final bundle = await _syncKeyBundle(
+        utf8.encode('services.mozilla.com/sync-1.5'));
     final encKey = bundle.sublist(0, 32);
     final hmacKey = bundle.sublist(32, 64);
     final aes = cg.AesCbc.with256bits(
@@ -274,7 +275,8 @@ class FxaSyncBackend extends SyncBackend {
   Future<String?> _decryptPayload(String bsoPayload) async {
     try {
       final j = jsonDecode(bsoPayload) as Map<String, dynamic>;
-      final bundle = await _syncKeyBundle(utf8.encode(''));
+      final bundle = await _syncKeyBundle(
+        utf8.encode('services.mozilla.com/sync-1.5'));
       final encKey = bundle.sublist(0, 32);
       final hmacKey = bundle.sublist(32, 64);
       final ct = base64.decode(j['ciphertext'] as String);
@@ -375,14 +377,24 @@ class SyncService extends ChangeNotifier {
   static const _cursorKey = 'sync_cursor_';
   static const _lastKey = 'sync_last';
 
+  SyncBackend? _backendCache;
+  String? _backendChoiceTag;
+
   SyncBackend get backend {
-    final choice = Storage.read(Storage.settings, _backendKey) ?? 'auto';
+    final choice = backendChoice;
+    if (_backendChoiceTag != choice) {
+      _backendChoiceTag = choice;
+      _backendCache = null;
+    }
+    return _backendCache ??= _buildBackend(choice);
+  }
+
+  SyncBackend _buildBackend(String choice) {
     switch (choice) {
       case 'selfhosted':
         return SelfHostedSyncBackend(
           baseUrl: Storage.read(Storage.settings, _relayUrlKey) ?? '',
-          token: Storage.read(Storage.settings, _relayTokenKey) ?? '',
-        );
+          token: Storage.read(Storage.settings, _relayTokenKey) ?? '');
       case 'local':
         return local;
       case 'fxa':
@@ -394,8 +406,7 @@ class SyncService extends ChangeNotifier {
         if (relay != null && relay.isNotEmpty) {
           return SelfHostedSyncBackend(
             baseUrl: relay,
-            token: Storage.read(Storage.settings, _relayTokenKey) ?? '',
-          );
+            token: Storage.read(Storage.settings, _relayTokenKey) ?? '');
         }
         return local;
     }
@@ -406,12 +417,16 @@ class SyncService extends ChangeNotifier {
 
   void setBackendChoice(String v) {
     Storage.write(Storage.settings, _backendKey, v);
+    _backendChoiceTag = null;
+    _backendCache = null;
     notifyListeners();
   }
 
   void configureRelay(String url, String token) {
     Storage.write(Storage.settings, _relayUrlKey, url);
     Storage.write(Storage.settings, _relayTokenKey, token);
+    _backendChoiceTag = null;
+    _backendCache = null;
     notifyListeners();
   }
 

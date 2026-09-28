@@ -133,7 +133,7 @@ class ReaderSheet extends StatelessWidget {
                               case 'blockquote':
                                 return {
                                   'border-left':
-                                      '3px solid ${scheme.outlineVariant}',
+                                      '3px solid #${scheme.outlineVariant.toARGB32().toRadixString(16).substring(2)}',
                                   'padding-left': '16px',
                                   'font-style': 'italic',
                                 };

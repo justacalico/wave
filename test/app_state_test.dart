@@ -248,7 +248,7 @@ void main() {
 
   group('credentials', () {
     test('credential prompt surfaces origin', () async {
-      final app = await makeAppState();
+      final app = await makeAppState(preseed: fakeVaultKey);
       final t = app.newTab(url: 'https://login.dev');
       app.controllerFor(t).onCredentialRequest?.call('login.dev', 'me', 'pw');
       expect(app.pendingCredentialOrigin, 'login.dev');
