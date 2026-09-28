@@ -68,7 +68,7 @@ jobs:
             BUILD_ALL="true"
           fi
           if [ "$BUILD_ALL" = "true" ]; then
-            TARGETS='[{"target":"android","os":"ubuntu-latest"},{"target":"linux","os":"ubuntu-latest"},{"target":"linux-arm64","os":"ubuntu-24.04-arm","flutter":"git"},{"target":"windows","os":"windows-latest"},{"target":"windows-arm64","os":"windows-11-arm","flutter":"git"},{"target":"macos","os":"macos-latest","flutter_arch":"arm64"},{"target":"ios","os":"macos-latest","flutter_arch":"arm64"},{"target":"web","os":"ubuntu-latest"}]'
+            TARGETS='[{"target":"android","os":"ubuntu-latest"},{"target":"linux","os":"ubuntu-latest"},{"target":"linux-arm64","os":"ubuntu-24.04-arm","flutter":"git"},{"target":"windows","os":"windows-2022"},{"target":"macos","os":"macos-latest","flutter_arch":"arm64"},{"target":"ios","os":"macos-latest","flutter_arch":"arm64"},{"target":"web","os":"ubuntu-latest"}]'
           else
             TARGETS='[{"target":"android","os":"ubuntu-latest"}]'
           fi
@@ -215,7 +215,7 @@ jobs:
         if: startsWith(matrix.target, 'linux')
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq clang cmake ninja-build pkg-config libgtk-3-dev libblkid-dev liblzma-dev zip dpkg-dev rpm libwebkit2gtk-4.1-dev libsoup-3.0-dev curl
+          sudo apt-get install -y -qq clang cmake ninja-build pkg-config libgtk-3-dev libblkid-dev liblzma-dev zip dpkg-dev rpm libwebkit2gtk-4.1-dev libsoup-3.0-dev libsecret-1-dev curl
 
       - name: Build Android packages
         if: matrix.target == 'android'
