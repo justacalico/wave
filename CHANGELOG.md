@@ -2,6 +2,15 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## [v0.1.2](https://gitlab.com/HttpAnimations/wave/compare/9d7b5b4da6e1304716f9fc9b6b877d9e0030d5df..v0.1.2) - 2026-09-28
+#### Bug Fixes
+- 移动端菜单改为紧凑图标列表 - ([48c4f0a](https://gitlab.com/HttpAnimations/wave/commit/48c4f0ab459cd299cb8ae74956a9196c82063257)) - HttpAnimations
+#### Miscellaneous Chores
+- 更新 AltStore 源 - ([b887764](https://gitlab.com/HttpAnimations/wave/commit/b8877643eb1dd4537d5b3abda292f753a24e355b)) - GitLab CI
+- 更新 AltStore 源 - ([9d7b5b4](https://gitlab.com/HttpAnimations/wave/commit/9d7b5b4da6e1304716f9fc9b6b877d9e0030d5df)) - GitLab CI
+
+- - -
+
 ## [v0.1.1](https://gitlab.com/HttpAnimations/wave/compare/9dfb13dd263058d94c144979988b768c36f70579..v0.1.1) - 2026-09-28
 #### Bug Fixes
 - 存储初始化时锁文件失败改用重试加内存降级 - ([3650932](https://gitlab.com/HttpAnimations/wave/commit/3650932be5d22e8d6a4d0cfe8327cb81dc9a837e)) - HttpAnimations
