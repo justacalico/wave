@@ -18,10 +18,10 @@
       "screenshots": [],
       "versions": [
         {
-          "version": "0.1.0",
-          "date": "2026-09-28T05:25:33Z",
-          "downloadURL": "https://gitlab.com/api/v4/projects/86963020/packages/generic/release-assets/v0.1.0/wave-ios-arm64-unsigned.ipa",
-          "size": 9238274,
+          "version": "nightly",
+          "date": "2026-09-28T06:16:26Z",
+          "downloadURL": "https://gitlab.com/api/v4/projects/86963020/packages/generic/release-assets/nightly/wave-ios-arm64-unsigned.ipa",
+          "size": 9238458,
           "minOSVersion": "15.0"
         }
       ],
