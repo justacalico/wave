@@ -82,15 +82,30 @@ class Storage {
       final dir = await getApplicationSupportDirectory();
       await Hive.initFlutter(dir.path);
     }
-    _workspaces = Kv._(await Hive.openBox('workspaces'));
-    _tabs = Kv._(await Hive.openBox('tabs'));
-    _bookmarks = Kv._(await Hive.openBox('bookmarks'));
-    _history = Kv._(await Hive.openBox('history'));
-    _downloads = Kv._(await Hive.openBox('downloads'));
-    _settings = Kv._(await Hive.openBox('settings'));
-    _vault = Kv._(await Hive.openBox('vault'));
-    _sync = Kv._(await Hive.openBox('sync'));
+    // A leftover process or a filesystem without flock support can make
+    // openBox throw FileSystemException('lock failed'). Retry briefly —
+    // a dying instance releases the lock quickly — then degrade to an
+    // in-memory box so the app still runs (state just won't persist).
+    _workspaces = await _openBox('workspaces');
+    _tabs = await _openBox('tabs');
+    _bookmarks = await _openBox('bookmarks');
+    _history = await _openBox('history');
+    _downloads = await _openBox('downloads');
+    _settings = await _openBox('settings');
+    _vault = await _openBox('vault');
+    _sync = await _openBox('sync');
     _ready = true;
+  }
+
+  static Future<Kv> _openBox(String name) async {
+    for (var i = 0; i < 40; i++) {
+      try {
+        return Kv._(await Hive.openBox(name));
+      } catch (_) {
+        await Future<void>.delayed(const Duration(milliseconds: 150));
+      }
+    }
+    return Kv.memory();
   }
 
   static Kv get workspaces => _workspaces;
