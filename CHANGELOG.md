@@ -2,6 +2,15 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## [v0.1.1](https://gitlab.com/HttpAnimations/wave/compare/9dfb13dd263058d94c144979988b768c36f70579..v0.1.1) - 2026-09-28
+#### Bug Fixes
+- 存储初始化时锁文件失败改用重试加内存降级 - ([3650932](https://gitlab.com/HttpAnimations/wave/commit/3650932be5d22e8d6a4d0cfe8327cb81dc9a837e)) - HttpAnimations
+#### Miscellaneous Chores
+- 更新 AltStore 源 - ([d221142](https://gitlab.com/HttpAnimations/wave/commit/d221142f88b66a1dcbf50cee19a3afafba164cfe)) - GitLab CI
+- 更新 AltStore 源 - ([9dfb13d](https://gitlab.com/HttpAnimations/wave/commit/9dfb13dd263058d94c144979988b768c36f70579)) - GitLab CI
+
+- - -
+
 ## [v0.1.0](https://gitlab.com/HttpAnimations/wave/compare/df99eb406025c6a754ec271590e49e097d256330..v0.1.0) - 2026-09-28
 #### Features
 - 初始脚手架，浏览器外壳、工作区、侧边栏、FxA 登录与同步服务 - ([df99eb4](https://gitlab.com/HttpAnimations/wave/commit/df99eb406025c6a754ec271590e49e097d256330)) - calico
