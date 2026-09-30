@@ -120,8 +120,26 @@ class Storage {
   static String? read(Kv box, String key) => box.get(key) as String?;
   static void write(Kv box, String key, String value) => box.put(key, value);
 
-  static Future<String?> readSecret(String key) => secure.read(key: key);
-  static Future<void> writeSecret(String key, String value) =>
-      secure.write(key: key, value: value);
-  static Future<void> deleteSecret(String key) => secure.delete(key: key);
+  // libsecret throws PlatformException when no Secret Service provider is
+  // on the bus (sessions without gnome-keyring or KWallet). Degrade to an
+  // empty store so the app still boots; secrets just won't persist.
+  static Future<String?> readSecret(String key) async {
+    try {
+      return await secure.read(key: key);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static Future<void> writeSecret(String key, String value) async {
+    try {
+      await secure.write(key: key, value: value);
+    } catch (_) {}
+  }
+
+  static Future<void> deleteSecret(String key) async {
+    try {
+      await secure.delete(key: key);
+    } catch (_) {}
+  }
 }
