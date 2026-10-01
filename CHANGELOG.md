@@ -2,6 +2,17 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## [v0.1.3](https://gitlab.com/HttpAnimations/wave/compare/497df44d492c11e1b7072019fb990da015aa39ea..v0.1.3) - 2026-10-01
+#### Bug Fixes
+- 修复 Linux 无密钥服务时启动崩溃 - ([be3b3d6](https://gitlab.com/HttpAnimations/wave/commit/be3b3d6f27b432cb4d3f1dc2b372aeed03e28837)) - HttpAnimations
+#### Miscellaneous Chores
+- 更新 AltStore 源 - ([f813e06](https://gitlab.com/HttpAnimations/wave/commit/f813e06c8a28b31d5147cabb846ff035062faebc)) - GitLab CI
+- 更新 AltStore 源 - ([ad5989f](https://gitlab.com/HttpAnimations/wave/commit/ad5989f747d352ee7462fb0fa0dd286bedb81b32)) - GitLab CI
+- 更新 AltStore 源 - ([7d13294](https://gitlab.com/HttpAnimations/wave/commit/7d13294a7f5722354bf7894f0610a39096d03c8a)) - GitLab CI
+- 更新 AltStore 源 - ([497df44](https://gitlab.com/HttpAnimations/wave/commit/497df44d492c11e1b7072019fb990da015aa39ea)) - GitLab CI
+
+- - -
+
 ## [v0.1.2](https://gitlab.com/HttpAnimations/wave/compare/9d7b5b4da6e1304716f9fc9b6b877d9e0030d5df..v0.1.2) - 2026-09-28
 #### Bug Fixes
 - 移动端菜单改为紧凑图标列表 - ([48c4f0a](https://gitlab.com/HttpAnimations/wave/commit/48c4f0ab459cd299cb8ae74956a9196c82063257)) - HttpAnimations
