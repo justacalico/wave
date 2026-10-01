@@ -139,7 +139,11 @@ void main() {
         a.newTab(url: 'https://other.dev', activate: false);
         a.newTab(url: 'https://ctx.dev');
       });
-      await tester.tapAt(tester.getCenter(find.textContaining('ctx.dev').first), buttons: kSecondaryButton);
+      await tester.tapAt(
+          tester.getCenter(find.descendant(
+              of: find.byType(ReorderableListView),
+              matching: find.textContaining('ctx.dev'))),
+          buttons: kSecondaryButton);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
       expect(find.text('Pin'), findsOne);
@@ -148,7 +152,11 @@ void main() {
       await tester.pump(const Duration(milliseconds: 300));
       expect(app.pinnedTabs.single.url, 'https://ctx.dev');
 
-      await tester.tapAt(tester.getCenter(find.textContaining('other.dev').first), buttons: kSecondaryButton);
+      await tester.tapAt(
+          tester.getCenter(find.descendant(
+              of: find.byType(ReorderableListView),
+              matching: find.textContaining('other.dev'))),
+          buttons: kSecondaryButton);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
       await tester.tap(find.text('Open in split view'));
@@ -161,7 +169,11 @@ void main() {
       final app = await pump(tester, seed: (a) {
         a.newTab(url: 'https://moveme.dev');
       });
-      await tester.tapAt(tester.getCenter(find.textContaining('moveme.dev').first), buttons: kSecondaryButton);
+      await tester.tapAt(
+          tester.getCenter(find.descendant(
+              of: find.byType(ReorderableListView),
+              matching: find.textContaining('moveme.dev'))),
+          buttons: kSecondaryButton);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
       await tester.tap(find.text('Move to Work'));

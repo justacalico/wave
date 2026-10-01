@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -8,13 +7,10 @@ import '../app_state.dart';
 import '../models.dart';
 import '../webview/companion_adapter.dart';
 import '../webview/companion_dock.dart';
-import '../webview/controller.dart';
 import '../webview/inapp_adapter.dart';
 import 'new_tab.dart';
-import 'omnibox.dart';
 import '../theme.dart';
 import 'reader.dart';
-import 'widgets.dart';
 
 /// Hosts the live webview for the active tab (and the split-view tab), or
 /// the new-tab page when the tab is fresh. On Linux the webview is a docked
@@ -180,156 +176,3 @@ class _TabSurfaceState extends State<_TabSurface> {
   }
 }
 
-/// The toolbar row above the content: nav buttons, omnibox, action icons.
-class ContentToolbar extends StatelessWidget {
-  const ContentToolbar({super.key, required this.omniboxKey});
-
-  final GlobalKey<OmniboxState> omniboxKey;
-
-  @override
-  Widget build(BuildContext context) {
-    final app = context.watch<AppState>();
-    final tab = app.activeTab;
-    final c = tab == null ? null : app.controllerOf(tab.id);
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
-      child: Row(
-        children: [
-          GhostButton(
-            icon: Icons.arrow_back_rounded,
-            tooltip: 'Back (Alt+←)',
-            onPressed:
-                c?.canGoBack == true ? () => c!.goBack() : null,
-          ),
-          GhostButton(
-            icon: Icons.arrow_forward_rounded,
-            tooltip: 'Forward (Alt+→)',
-            onPressed:
-                c?.canGoForward == true ? () => c!.goForward() : null,
-          ),
-          GhostButton(
-            icon: (c?.loading.value ?? false)
-                ? Icons.close_rounded
-                : Icons.refresh_rounded,
-            tooltip: 'Reload (Ctrl+R)',
-            onPressed: () {
-              if (c == null) return;
-              c.loading.value ? c.stop() : c.reload();
-            },
-          ),
-          const SizedBox(width: 6),
-          Expanded(child: Omnibox(key: omniboxKey)),
-          const SizedBox(width: 6),
-          if (tab != null && tab.url.isNotEmpty) ...[
-            GhostButton(
-              icon: Icons.chrome_reader_mode_outlined,
-              tooltip: 'Reader mode',
-              onPressed: () => _openReader(context),
-            ),
-            GhostButton(
-              icon: Icons.vertical_split_rounded,
-              tooltip: 'Split view',
-              onPressed: () => _splitMenu(context),
-            ),
-          ],
-          GhostButton(
-            icon: Icons.more_vert_rounded,
-            tooltip: 'Menu',
-            onPressed: () => _mainMenu(context),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _openReader(BuildContext context) async {
-    final app = context.read<AppState>();
-    final tab = app.activeTab;
-    if (tab == null) return;
-    final c = app.controllerOf(tab.id);
-    final raw = await c?.evaluateJavaScript(kWaveReaderScript);
-    if (raw == null || !context.mounted) return;
-    try {
-      final data = jsonDecode(raw) as Map<String, dynamic>;
-      if (data['error'] != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('No article found on this page')));
-        return;
-      }
-      app.setReaderData(data);
-    } catch (_) {}
-  }
-
-  void _splitMenu(BuildContext context) {
-    final app = context.read<AppState>();
-    final active = app.activeTab;
-    if (active == null) return;
-    final others = app.workspaceTabs
-        .where((t) => t.id != active.id && t.url.isNotEmpty)
-        .toList();
-    if (others.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Open another tab to split')));
-      return;
-    }
-    showMenu<void>(
-      context: context,
-      position: RelativeRect.fromLTRB(
-          MediaQuery.of(context).size.width - 40, 48, 0, 0),
-      items: <PopupMenuEntry<void>>[
-        for (final t in others.take(8))
-          PopupMenuItem(
-            child: Text(t.title,
-                maxLines: 1, overflow: TextOverflow.ellipsis),
-            onTap: () => app.toggleSplitWith(t.id),
-          ),
-      ],
-    );
-  }
-
-  void _mainMenu(BuildContext context) {
-    final app = context.read<AppState>();
-    showMenu<void>(
-      context: context,
-      position: RelativeRect.fromLTRB(
-          MediaQuery.of(context).size.width - 40, 48, 0, 0),
-      items: <PopupMenuEntry<void>>[
-        PopupMenuItem(
-          child: const Text('New private tab'),
-          onTap: () => app.newTab(isPrivate: true),
-        ),
-        PopupMenuItem(
-          child: const Text('Bookmarks'),
-          onTap: () => app.showPanel(ActivePanel.bookmarks),
-        ),
-        PopupMenuItem(
-          child: const Text('History'),
-          onTap: () => app.showPanel(ActivePanel.history),
-        ),
-        PopupMenuItem(
-          child: const Text('Downloads'),
-          onTap: () => app.showPanel(ActivePanel.downloads),
-        ),
-        PopupMenuItem(
-          child: const Text('Passwords'),
-          onTap: () => app.showPanel(ActivePanel.vault),
-        ),
-        const PopupMenuDivider(),
-        PopupMenuItem(
-          child: const Text('Find in page'),
-          onTap: () => app.setFindBar(true),
-        ),
-        PopupMenuItem(
-          child: const Text('Synced tabs'),
-          onTap: () => app.showPanel(ActivePanel.account),
-        ),
-        const PopupMenuDivider(),
-        PopupMenuItem(
-          child: const Text('Settings'),
-          onTap: () => app.showPanel(ActivePanel.settings),
-        ),
-      ],
-    );
-  }
-}

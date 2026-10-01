@@ -222,6 +222,7 @@ class _DesktopLayout extends StatelessWidget {
             children: [
               if (app.sidebarVisible)
                 Sidebar(
+                    omniboxKey: omniboxKey,
                     onOpenAccount: () =>
                         app.showPanel(ActivePanel.account)),
               if (app.sidebarVisible) const SidePanel(),
@@ -243,7 +244,6 @@ class _DesktopLayout extends StatelessWidget {
               Expanded(
                 child: Column(
                   children: [
-                    ContentToolbar(omniboxKey: omniboxKey),
                     _ActiveProgressLine(),
                     Expanded(
                       child: Stack(

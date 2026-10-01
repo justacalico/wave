@@ -1,17 +1,23 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../app_state.dart';
 import '../models.dart';
 import '../theme.dart';
+import '../webview/controller.dart';
+import 'omnibox.dart';
 import 'widgets.dart';
 
-/// The vertical tab rail — workspace switcher, essentials, pinned tabs and
-/// the reorderable tab list. Collapses to a 52px icon rail.
+/// The vertical tab rail: nav controls and omnibox on top, then workspace
+/// switcher, essentials, pinned tabs and the reorderable tab list.
+/// Collapses to a 52px icon rail.
 class Sidebar extends StatelessWidget {
-  const Sidebar({super.key, this.onOpenAccount});
+  const Sidebar({super.key, this.onOpenAccount, this.omniboxKey});
 
   final VoidCallback? onOpenAccount;
+  final GlobalKey<OmniboxState>? omniboxKey;
 
   @override
   Widget build(BuildContext context) {
@@ -37,6 +43,7 @@ class Sidebar extends StatelessWidget {
       ),
       child: Column(
         children: [
+          _NavToolbar(collapsed: collapsed, omniboxKey: omniboxKey),
           _WorkspaceHeader(collapsed: collapsed),
           const SizedBox(height: 4),
           if (app.essentialTabs.isNotEmpty)
@@ -50,6 +57,202 @@ class Sidebar extends StatelessWidget {
           _BottomBar(onOpenAccount: onOpenAccount, collapsed: collapsed),
         ],
       ),
+    );
+  }
+}
+
+/// Back/forward/reload, the omnibox and the main menu. What used to be
+/// the content toolbar, docked at the top of the sidebar.
+class _NavToolbar extends StatelessWidget {
+  const _NavToolbar({required this.collapsed, this.omniboxKey});
+
+  final bool collapsed;
+  final GlobalKey<OmniboxState>? omniboxKey;
+
+  @override
+  Widget build(BuildContext context) {
+    final app = context.watch<AppState>();
+    final tab = app.activeTab;
+    final c = tab == null ? null : app.controllerOf(tab.id);
+
+    final back = GhostButton(
+      icon: Icons.arrow_back_rounded,
+      tooltip: 'Back (Alt+←)',
+      onPressed:
+          c?.canGoBack == true ? () => c!.goBack() : null,
+    );
+    final forward = GhostButton(
+      icon: Icons.arrow_forward_rounded,
+      tooltip: 'Forward (Alt+→)',
+      onPressed:
+          c?.canGoForward == true ? () => c!.goForward() : null,
+    );
+    final reload = GhostButton(
+      icon: (c?.loading.value ?? false)
+          ? Icons.close_rounded
+          : Icons.refresh_rounded,
+      tooltip: 'Reload (Ctrl+R)',
+      onPressed: () {
+        if (c == null) return;
+        c.loading.value ? c.stop() : c.reload();
+      },
+    );
+    final menu = Builder(
+      builder: (context) => GhostButton(
+        icon: Icons.more_vert_rounded,
+        tooltip: 'Menu',
+        onPressed: () => _mainMenu(context),
+      ),
+    );
+
+    if (collapsed) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 10),
+        child: Column(
+          children: [
+            back,
+            forward,
+            reload,
+            GhostButton(
+              icon: Icons.search_rounded,
+              tooltip: 'Search or address',
+              onPressed: () {
+                app.toggleSidebarCollapsed();
+                WidgetsBinding.instance
+                    .addPostFrameCallback((_) {
+                  omniboxKey?.currentState?.focus();
+                });
+              },
+            ),
+            menu,
+          ],
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(10, 10, 10, 2),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              back,
+              forward,
+              reload,
+              const Spacer(),
+              menu,
+            ],
+          ),
+          const SizedBox(height: 6),
+          Omnibox(key: omniboxKey),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _openReader(BuildContext context) async {
+    final app = context.read<AppState>();
+    final tab = app.activeTab;
+    if (tab == null) return;
+    final c = app.controllerOf(tab.id);
+    final raw = await c?.evaluateJavaScript(kWaveReaderScript);
+    if (raw == null || !context.mounted) return;
+    try {
+      final data = jsonDecode(raw) as Map<String, dynamic>;
+      if (data['error'] != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('No article found on this page')));
+        return;
+      }
+      app.setReaderData(data);
+    } catch (_) {}
+  }
+
+  RelativeRect _menuAnchor(BuildContext context) {
+    final box = context.findRenderObject()! as RenderBox;
+    final pos = box.localToGlobal(Offset.zero);
+    return RelativeRect.fromLTRB(
+        pos.dx, pos.dy + box.size.height + 4, pos.dx + box.size.width, 0);
+  }
+
+  void _splitMenu(BuildContext context) {
+    final app = context.read<AppState>();
+    final active = app.activeTab;
+    if (active == null) return;
+    final others = app.workspaceTabs
+        .where((t) => t.id != active.id && t.url.isNotEmpty)
+        .toList();
+    if (others.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Open another tab to split')));
+      return;
+    }
+    showMenu<void>(
+      context: context,
+      position: _menuAnchor(context),
+      items: <PopupMenuEntry<void>>[
+        for (final t in others.take(8))
+          PopupMenuItem(
+            child: Text(t.title,
+                maxLines: 1, overflow: TextOverflow.ellipsis),
+            onTap: () => app.toggleSplitWith(t.id),
+          ),
+      ],
+    );
+  }
+
+  void _mainMenu(BuildContext context) {
+    final app = context.read<AppState>();
+    final hasPage = app.activeTab?.url.isNotEmpty ?? false;
+    showMenu<void>(
+      context: context,
+      position: _menuAnchor(context),
+      items: <PopupMenuEntry<void>>[
+        PopupMenuItem(
+          child: const Text('New private tab'),
+          onTap: () => app.newTab(isPrivate: true),
+        ),
+        PopupMenuItem(
+          child: const Text('Bookmarks'),
+          onTap: () => app.showPanel(ActivePanel.bookmarks),
+        ),
+        PopupMenuItem(
+          child: const Text('History'),
+          onTap: () => app.showPanel(ActivePanel.history),
+        ),
+        PopupMenuItem(
+          child: const Text('Downloads'),
+          onTap: () => app.showPanel(ActivePanel.downloads),
+        ),
+        PopupMenuItem(
+          child: const Text('Passwords'),
+          onTap: () => app.showPanel(ActivePanel.vault),
+        ),
+        const PopupMenuDivider(),
+        if (hasPage)
+          PopupMenuItem(
+            child: const Text('Reader mode'),
+            onTap: () => _openReader(context),
+          ),
+        if (hasPage)
+          PopupMenuItem(
+            child: const Text('Split view'),
+            onTap: () => _splitMenu(context),
+          ),
+        PopupMenuItem(
+          child: const Text('Find in page'),
+          onTap: () => app.setFindBar(true),
+        ),
+        PopupMenuItem(
+          child: const Text('Synced tabs'),
+          onTap: () => app.showPanel(ActivePanel.account),
+        ),
+        const PopupMenuDivider(),
+        PopupMenuItem(
+          child: const Text('Settings'),
+          onTap: () => app.showPanel(ActivePanel.settings),
+        ),
+      ],
     );
   }
 }
