@@ -19,9 +19,9 @@
       "versions": [
         {
           "version": "nightly",
-          "date": "2026-09-30T10:28:06Z",
+          "date": "2026-10-01T00:28:47Z",
           "downloadURL": "https://gitlab.com/api/v4/projects/86963020/packages/generic/release-assets/nightly/wave-ios-arm64-unsigned.ipa",
-          "size": 9241876,
+          "size": 9242785,
           "minOSVersion": "15.0"
         }
       ],
