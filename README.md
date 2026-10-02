@@ -61,7 +61,7 @@ Binaries for every platform land on the
 [GitLab releases page](https://gitlab.com/HttpAnimations/wave/-/releases);
 the pipeline builds on GitHub and syncs artifacts back so they never expire.
 iOS installs via the
-[AltStore source](https://httpanimations.gitlab.io/wave/altstore/apps.json).
+[AltStore source](https://wave-d26c57.gitlab.io/altstore/apps.json).
 
 ## License
 
