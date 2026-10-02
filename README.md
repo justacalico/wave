@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/icon.svg" width="128" alt="Wave icon">
+</p>
+
 # Wave
 
 A quiet browser. Vertical tabs, workspaces that tint themselves, and Firefox
