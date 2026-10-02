@@ -164,7 +164,7 @@ github-release-sync:
     when: always
 
 # Publishes the web landing page (build/web tarball from the synced release)
-# plus the AltStore source at https://httpanimations.gitlab.io/wave/.
+# plus the AltStore source at https://wave-d26c57.gitlab.io/.
 pages:
   stage: deploy
   tags: [linux-truenas]
