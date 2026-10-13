@@ -114,7 +114,20 @@ jobs:
           flutter analyze --no-pub
 
       - name: Check conventional commits
-        run: cog check --from-latest-tag || cog check
+        run: |
+          # Only commits introduced by this ref update are checked; commits
+          # already merged on main cannot be fixed retroactively.
+          if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            RANGE="${{ github.event.before }}..HEAD"
+          else
+            git fetch --no-tags origin main
+            RANGE="FETCH_HEAD..HEAD"
+          fi
+          if [ "$(git rev-list --count "$RANGE" 2>/dev/null || echo 0)" = "0" ]; then
+            echo "No new commits to check"
+          else
+            cog check "$RANGE"
+          fi
 
       - name: Test with coverage gate
         run: |
